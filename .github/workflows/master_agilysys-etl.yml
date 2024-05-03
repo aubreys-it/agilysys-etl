@@ -12,7 +12,7 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
-  PYTHON_VERSION: '3.10' # set this to the python version to use (supports 3.6, 3.7, 3.8)
+  PYTHON_VERSION: '3.9' # set this to the python version to use (supports 3.6, 3.7, 3.8)
 
 jobs:
   build:
@@ -30,7 +30,6 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          sed -i -e 's/false/true/' venv/pyvenv.cfg
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -69,9 +68,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_4E5C2DBB916B40768F5DFB21D53E6F96 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5F088B0CE99041BABF24C70D970A8339 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_256EB6ACDBFD4442A11CD5D1152594FE }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_9F96613B96164D6395330879204E3431 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CF38A668BCC44715A291BAE06E708F6A }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_FA4A3D1F6BD44DBEB7EDC5D5DA570B6F }}
 
       - name: 'Deploy to Azure Functions'
         uses: Azure/functions-action@v1
