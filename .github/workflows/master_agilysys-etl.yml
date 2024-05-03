@@ -32,6 +32,9 @@ jobs:
           source venv/bin/activate
           sed -i -e 's/false/true/' venv/pyvenv.cfg
 
+      - name: Update pip
+        run: pip install --upgrade pip
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
