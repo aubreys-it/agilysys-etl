@@ -1,35 +1,16 @@
 import logging
-#import json
+import json
 import pandas as pd
 import azure.functions as func
-#from azure.storage.blob import ContainerClient
-#import os
+from azure.storage.blob import ContainerClient
+import os
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+import azure.functions as func
 
-@app.route(route="ig_product_mix")
-def ig_product_mix(req: func.HttpRequest) -> func.HttpResponse:
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
 
-    name = req.params.get('name')
-    if not name:
-        try:
-            req_body = req.get_json()
-        except ValueError:
-            pass
-        else:
-            name = req_body.get('name')
-
-    if name:
-        return func.HttpResponse(f"Hello, {name}. This HTTP triggered function executed successfully.")
-    else:
-        return func.HttpResponse(
-             "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
-             status_code=200
-        )
-'''
-def ig_product_mix(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function processed a request.')
     def format_date(s):
         slash_1 = s.find('/')
         slash_2 = s.find('/', s.find('/')+1)
@@ -197,5 +178,3 @@ def ig_product_mix(req: func.HttpRequest) -> func.HttpResponse:
         ),
         mimetype='application/json'
     )
-'''
-                
