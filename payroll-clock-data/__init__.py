@@ -59,6 +59,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     df.insert(1, 'period_start', period_start)
     df.insert(2, 'period_end', period_end)
 
-    df.to_csv(csvURI + csvSAS)
+    df.to_csv(csvURI + 'clock_data.csv' + csvSAS, index=False)
 
     return func.HttpResponse(true)
