@@ -6,3 +6,4 @@ azure-functions
 pandas~=1.3.4
 azure-storage-blob==12.8.0
 numpy~=1.23.5
+openpyxl
