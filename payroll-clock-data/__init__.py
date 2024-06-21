@@ -18,9 +18,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     csvURI = os.environ['DATALAKE_URL']
 
     #xls_container_name = xlsURI[:xlsURI.find('.net) + 5 + xlsURI[xlsURI.find('.net) + 5:].find('/')]
-    xls_file = xlsURI[xlsURI.find('cherokee') + 8:]
+    xls_file = xlsURI[xlsURI.find('/cherokee') + 9:]
     #xls_path = xlsURI[:en(xls_container_name) + 1:xlsURI.find(xls_file)]
     csv_file = xls_file[:-4] + '.csv'
+
+    logging.info(f'csv_file: {csv_file}')
 
     col_names = ['header', 'empID', 'empName', 'jobCodeID', 'clock_in', 'profitCenterID', 'clock_out', 'clock_period', 'report_period_hours']
     data_start = 0
