@@ -61,4 +61,4 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     df.to_csv(csvURI + 'clock_data.csv' + csvSAS, index=False)
 
-    return func.HttpResponse(true)
+    return func.HttpResponse(True)
