@@ -73,7 +73,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         df.loc[i, 'declaredTips'] = df.iloc[i]['declaredTips']
 
     df.dropna(inplace=True)
-    df = df[df.empId != 0.0]
+    df = df[df.empId != '']
     
     csv_container = ContainerClient.from_container_url(csvURI + csvSAS)
     csv_client = csv_container.get_blob_client(csv_file)
