@@ -28,8 +28,14 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     data_start = 0
 
     loc_dict = {
+        "Aubrey's Powell": 2,
+        "Aubrey's Cedar Bluff": 4,
+        "Aubrey's Maryville": 5,
         "Aubrey's Papermill": 9,
-        "Bistro by the Tracks": 20
+        "Aubrey's Oak Ridge": 13,
+        "Aubrey's Strawberry Plains": 14,
+        "Bistro by the Tracks": 20,
+        "Universal Pizza Co": 35
         }
     
     df = pd.read_excel(xlsURI, names=col_names)
