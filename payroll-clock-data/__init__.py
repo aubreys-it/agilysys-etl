@@ -1,7 +1,7 @@
 import logging, os, json
 import pandas as pd
 import azure.functions as func
-
+from azure.storage.blob import ContainerClient
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
@@ -16,6 +16,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     xlsURI = req.params.get("uri")
     csvSAS = os.environ['DATALAKE_SAS']
     csvURI = os.environ['DATALAKE_URL']
+
+    #xls_container_name = xlsURI[:xlsURI.find('.net) + 5 + xlsURI[xlsURI.find('.net) + 5:].find('/')]
+    xls_file = xlsURI[xlsURI.find('cherokee') + 8:]
+    #xls_path = xlsURI[:en(xls_container_name) + 1:xlsURI.find(xls_file)]
+    csv_file = xls_file[:-4] + '.csv'
 
     col_names = ['header', 'empID', 'empName', 'jobCodeID', 'clock_in', 'profitCenterID', 'clock_out', 'clock_period', 'report_period_hours']
     data_start = 0
@@ -59,6 +64,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     df.insert(1, 'period_start', period_start)
     df.insert(2, 'period_end', period_end)
 
-    df.to_csv(csvURI + 'clock_data.csv' + csvSAS, index=False)
-
-    return func.HttpResponse(True)
+    csv_container = ContainerClient.from_container_url(csvURI + csvSAS)
+    csv_client = csv_container.get_blob_client(csv_file)
+    if not csv_client.exists():
+        csv.client.upload_blob(data=df.to_csv(index=False, header=False, line_terminator='\r\n'))
+        return func.HttpResponse(True)
+    else:
+        return func.HttpResponse(False)
