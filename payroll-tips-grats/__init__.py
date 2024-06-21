@@ -15,7 +15,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     xlsURI = req.params.get("uri")
     csvSAS = os.environ['DATALAKE_SAS']
-    csvURI = os.environ['DATALAKE_URL']
+    csvURI = os.environ['DATALAKE_TIPS_GRATS_URL']
 
     xls_file = xlsURI[xlsURI.find('xlsx') + 4:]
     csv_file = xls_file[1:-5] + '.csv'
