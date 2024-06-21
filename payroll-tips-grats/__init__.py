@@ -74,8 +74,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     df.dropna(inplace=True)
     df = df[df.empId != 0.0]
-    df['empId'].apply(int)
-
+    
     csv_container = ContainerClient.from_container_url(csvURI + csvSAS)
     csv_client = csv_container.get_blob_client(csv_file)
     if not csv_client.exists():
