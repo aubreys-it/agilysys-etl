@@ -24,18 +24,23 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     col_names=['header', 'checks', 'covers', 'grossRevenue', 'discounts', 'tips', 'grats', 'tipTransferTo', 'tipTransferFrom', 'totalEarned', 'carried', 'amtPaid', 'amtDue', 'nonPayable', 'declaredTips']
     data_start = 0
-    empId = 0
-    locId = 99
+    empId = '0'
+    locId = '99'
 
     loc_dict = {
-        "Aubrey's Cedar Bluff": 4,
-        "Aubrey's Papermill": 9,
-        "Bistro by the Tracks": 20
+        "Aubrey's Powell": '2',
+        "Aubrey's Cedar Bluff": '4',
+        "Aubrey's Maryville": '5',
+        "Aubrey's Papermill": '9',
+        "Aubrey's Oak Ridge": '13',
+        "Aubrey's Strawberry Plains": '14',
+        "Bistro by the Tracks": '20',
+        "Universal Pizza Co": '35'
         }
 
     df = pd.read_excel(xlsURI, names=col_names)
-    df.insert(0, 'empId', 0)
-    df.insert(1, 'locId', 0)
+    df.insert(0, 'empId', '')
+    df.insert(1, 'locId', '')
 
     for i in range(len(df)):
         if isinstance(df.iloc[i]['header'], str):
@@ -47,7 +52,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                         locId = loc_dict[loc]
                 
             if df.iloc[i]['header'][:7]=='Server:':
-                empId=int(df.iloc[i]['header'][df.iloc[i]['header'].find('(')+1:df.iloc[i]['header'].find(')')])
+                empId=df.iloc[i]['header'][df.iloc[i]['header'].find('(')+1:df.iloc[i]['header'].find(')')]
                 
         df.loc[i, 'empId'] = empId
         df.loc[i, 'locId'] = locId
@@ -69,6 +74,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     df.dropna(inplace=True)
     df = df[df.empId != 0.0]
+    df['empId'].apply(int)
 
     csv_container = ContainerClient.from_container_url(csvURI + csvSAS)
     csv_client = csv_container.get_blob_client(csv_file)
