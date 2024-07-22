@@ -27,11 +27,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     loc_dict = {
         "Aubrey's Powell": 2,
+        "Sunspot": 3,
         "Aubrey's Cedar Bluff": 4,
         "Aubrey's Maryville": 5,
         "Aubrey's Papermill": 9,
         "Aubrey's Oak Ridge": 13,
         "Aubrey's Strawberry Plains": 14,
+        "Fieldhouse Social": 15,
         "Bistro by the Tracks": 20,
         "Universal Pizza Co": 35
         }
