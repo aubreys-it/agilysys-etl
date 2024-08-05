@@ -36,7 +36,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         "Aubrey's Oak Ridge": '13',
         "Aubrey's Strawberry Plains": '14',
         "Fieldhouse Social": '15',
+        "Aubrey's Greenville": '16',
+        "Aubrey's Greeneville": '16',
+        "Aubrey's Morristown": '18',
         "Bistro by the Tracks": '20',
+        "Aubrey's Sevierville": '23',
         "Universal Pizza Co": '35'
         }
 
