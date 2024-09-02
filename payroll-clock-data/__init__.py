@@ -7,10 +7,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
 
     def format_date(s):
-        s = s.zfill(10)
-        m = s[:2]
-        d = s[3:5]
-        y = s[6:]
+        m = s[:s.find('/')]
+        d = s[s.find('/')+1:s.rfind('/')]
+        y = s[s.rfind('/')+1:]
         return y + '/' + m + '/' + d
 
     xlsURI = req.params.get("uri")
@@ -36,8 +35,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         "Fieldhouse Social": 15,
         "Aubrey's Greenville": 16,
         "Aubrey's Greeneville": 16,
+        "Aubrey's Bristol": 17,
         "Aubrey's Morristown": 18,
         "Bistro by the Tracks": 20,
+        "Aubrey's Johnson City": 21,
         "Aubrey's Sevierville": 23,
         "Universal Pizza Co": 35
         }
