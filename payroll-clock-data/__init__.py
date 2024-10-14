@@ -40,11 +40,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         "Aubrey's Greeneville": 16,
         "Aubrey's Bristol": 17,
         "Aubrey's Morristown": 18,
+        "Marlowe": 19,
         "Bistro by the Tracks": 20,
         "Aubrey's Johnson City": 21,
         "Stefano's": 22,
         "Aubrey's Sevierville": 23,
-        "Universal Pizza Co": 35
+        "Universal Pizza Co": 35,
+        "Unused": 99
         }
     
     df = pd.read_excel(xlsURI, names=col_names)
