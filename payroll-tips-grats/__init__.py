@@ -65,7 +65,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                         locId = loc_dict[loc]
                 
             if df.iloc[i]['header'][:7]=='Server:':
-                empId=df.iloc[i]['header'][df.iloc[i]['header'].find('(')+1:df.iloc[i]['header'].find(')')]
+                empId=df.iloc[i]['header'][df.iloc[i]['header'].rfind('(')+1:df.iloc[i]['header'].rfind(')')]
                 
         df.loc[i, 'empId'] = empId
         df.loc[i, 'locId'] = locId
