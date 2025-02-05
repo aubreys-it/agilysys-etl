@@ -12,7 +12,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     rop_csvURI = os.environ['DATALAKE_ROP_DATA_URL']
 
     txt_file = txtURI[txtURI.rfind('/')+1:]
-    txtURI = txtURI[:txtURI.rfind('/')+1]
+    txtURI = txtURI[:txtURI.rfind('/')]
     emp_file = txt_file[:-3] + 'csv'
     rop_file = emp_file.replace('EMP', 'ROP')
 
