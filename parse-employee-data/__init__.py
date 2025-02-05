@@ -1,5 +1,4 @@
-import logging, os, json
-import pandas as pd
+import logging, os
 import azure.functions as func
 from azure.storage.blob import ContainerClient
 
@@ -15,10 +14,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     txtURI = txtURI[:txtURI.rfind('/')]
     emp_file = txt_file[:-3] + 'csv'
     rop_file = emp_file.replace('EMP', 'ROP')
-
-    logging.info(f'txtURI: {txtURI}')
-    logging.info(f'txt_file: {emp_file}')
-    logging.info(f'csv_file: {rop_file}')
 
     emp_client = ContainerClient.from_container_url(txtURI + txtSAS)
     txt_blob_client = emp_client.get_blob_client(txt_file)
@@ -54,5 +49,3 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         rop_client.get_blob_client(rop_file).upload_blob(rop_csv)
 
         return func.HttpResponse('True')
-    
-    return func.HttpResponse('False')
