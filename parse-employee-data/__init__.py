@@ -25,13 +25,15 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         txt_data = txt_blob_client.download_blob().readall()
         txt_data = txt_data.decode('utf-8').split('\r\n')
 
+        loc_id = txt_file[9:11]
+
         emp_csv_lines = []
         rop_csv_lines = []
 
         for line in txt_data:
             #Get Employee Header Information
             emp_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
-            emp_line = line[:line.find('{')] + line[line.find('}')+2:]
+            emp_line = loc_id + ',' + line[:line.find('{')] + line[line.find('}')+2:]
             emp_csv_lines.append(emp_line)
 
             #Get ROP Information
