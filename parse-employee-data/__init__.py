@@ -34,7 +34,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             #Get Employee Header Information
             emp_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
             emp_line = loc_id + ',' + line[:line.find('{')] + line[line.find('}')+2:]
-            emp_csv_lines.append(emp_line)
+            if emp_line.find(',', emp_line.find(',')+1) >0:
+                emp_csv_lines.append(emp_line)
 
             #Get ROP Information
             rop_line = line[line.find('{')+1:line.find('}')].replace('$','')
