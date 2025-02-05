@@ -21,14 +21,15 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     emp_file = txt_file[:-3] + 'csv'
     rop_file = emp_file.replace('EMP', 'ROP')
 
-    logging.info(f'xlsURI: {txtURI}')
-    logging.info(f'xls_file: {emp_file}')
+    logging.info(f'txtURI: {txtURI}')
+    logging.info(f'txt_file: {emp_file}')
     logging.info(f'csv_file: {rop_file}')
 
     emp_client = ContainerClient.from_container_url(txtURI + txtSAS)
-    txt_blob_client = emp_client.get_blob_client(txt_file)
+    txt_blob_client = emp_client.get_blob_client(txtURI)
 
     if not txt_blob_client.exists():
+        logging.info(f'Blob {txt_file} does not exist')
         return func.HttpResponse('False')
     else:
         txt_data = txt_blob_client.download_blob().readall()
