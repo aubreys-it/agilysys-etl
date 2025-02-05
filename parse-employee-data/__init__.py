@@ -42,7 +42,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             #Get ROP Information
             rop_line = line[line.find('{')+1:line.find('}')]
             rop_values = rop_line.split(',')
-            for i in range(len(rop_values)/4):
+            for i in range(int(len(rop_values)/4)):
                 rop_csv_lines.append([emp_id] + ',' + ','.join([v for v in rop_values[i*4:i*4+4]]))
             
         emp_csv = '\r\n'.join(emp_csv_lines)
