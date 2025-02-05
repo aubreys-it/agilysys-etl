@@ -13,7 +13,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         return y + '/' + m + '/' + d
 
     txtURI = req.params.get("uri")
-    txtSAS = os.environ['DATALAKE_SAS']
+    txtSAS = os.environ['EMP_SAS']
     emp_csvURI = os.environ['DATALAKE_EMPLOYEE_DATA_URL']
     rop_csvURI = os.environ['DATALAKE_ROP_DATA_URL']
 
