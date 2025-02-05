@@ -25,7 +25,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info(f'xls_file: {emp_file}')
     logging.info(f'csv_file: {rop_file}')
 
-    emp_client = ContainerClient.from_container_url(emp_csvURI + txtSAS)
+    emp_client = ContainerClient.from_container_url(txtURI + txtSAS)
     txt_blob_client = emp_client.get_blob_client(txt_file)
 
     if not txt_blob_client.exists():
