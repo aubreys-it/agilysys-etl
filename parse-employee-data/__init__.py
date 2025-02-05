@@ -6,18 +6,13 @@ from azure.storage.blob import ContainerClient
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
 
-    def format_date(s):
-        m = s[:s.find('/')]
-        d = s[s.find('/')+1:s.rfind('/')]
-        y = s[s.rfind('/')+1:]
-        return y + '/' + m + '/' + d
-
     txtURI = req.params.get("uri")
     txtSAS = os.environ['EMP_SAS']
     emp_csvURI = os.environ['DATALAKE_EMPLOYEE_DATA_URL']
     rop_csvURI = os.environ['DATALAKE_ROP_DATA_URL']
 
     txt_file = txtURI[txtURI.rfind('/')+1:]
+    txtURI = txtURI[:txtURI.rfind('/')+1]
     emp_file = txt_file[:-3] + 'csv'
     rop_file = emp_file.replace('EMP', 'ROP')
 
@@ -26,7 +21,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info(f'csv_file: {rop_file}')
 
     emp_client = ContainerClient.from_container_url(txtURI + txtSAS)
-    txt_blob_client = emp_client.get_blob_client(txtURI)
+    txt_blob_client = emp_client.get_blob_client(txt_file)
 
     if not txt_blob_client.exists():
         logging.info(f'Blob {txt_file} does not exist')
