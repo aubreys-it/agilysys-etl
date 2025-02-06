@@ -34,7 +34,14 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             #Get Employee Header Information
             emp_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
             emp_line = loc_id + ',' + line[:line.find('{')] + line[line.find('}')+2:]
-            emp_line = emp_line.replace(":<>","")
+            
+            #Remove special characters from Card Number column
+            emp_list = emp_line.split(',')
+            for c in emp_list[21]:
+                if not c.isdigit():
+                    emp_list[21] = emp_list[21].replace(c, '')
+            emp_line = ','.join(emp_list)
+
             if emp_line.find(',', emp_line.find(',')+1) >0:
                 emp_csv_lines.append(emp_line)
 
