@@ -23,6 +23,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse('False')
     else:
         txt_data = txt_blob_client.download_blob().readall()
+        txt_data = txt_data.replace(":<>","")   #Remove special characters used when card numbers are updated by swiping card
         txt_data = txt_data.decode('utf-8').split('\r\n')
 
         loc_id = txt_file[9:11]
@@ -33,7 +34,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         for line in txt_data:
             #Get Employee Header Information
             emp_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
-            emp_line = loc_id + ',' + line[:line.find('{')] + line[line.find('}')+2:].replace(':<>', '')
+            emp_line = loc_id + ',' + line[:line.find('{')] + line[line.find('}')+2:]
             if emp_line.find(',', emp_line.find(',')+1) >0:
                 emp_csv_lines.append(emp_line)
 
