@@ -33,7 +33,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         for line in txt_data:
             #Get Employee Header Information
             emp_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
-            emp_line = loc_id + ',' + line[:line.find('{')] + line[line.find('}')+2:]
+            emp_line = loc_id + ',' + line[:line.find('{')] + line[line.find('}')+2:].replace(':<>', '')
             if emp_line.find(',', emp_line.find(',')+1) >0:
                 emp_csv_lines.append(emp_line)
 
