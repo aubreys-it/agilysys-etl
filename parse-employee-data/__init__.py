@@ -37,10 +37,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             
             #Remove special characters from Card Number column
             emp_list = emp_line.split(',')
-            emp_list[21] = ''.join([char for char in emp_list[21] if char.isdigit()])
-            emp_line = ','.join(emp_list)
-
-            if emp_line.find(',', emp_line.find(',')+1) >0:
+            if len(emp_list)>20:
+                emp_list[20] = ''.join([char for char in emp_list[20] if char.isdigit()])
+                emp_line = ','.join(emp_list)
+                #Add Employee Information to Employee CSV
                 emp_csv_lines.append(emp_line)
 
             #Get ROP Information
