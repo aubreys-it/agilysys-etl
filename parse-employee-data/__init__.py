@@ -37,9 +37,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             
             #Remove special characters from Card Number column
             emp_list = emp_line.split(',')
-            for c in emp_list[21]:
-                if not c.isdigit():
-                    emp_list[21] = emp_list[21].replace(c, '')
+            emp_list[21] = ''.join([char for char in emp_list[21] if char.isdigit()])
             emp_line = ','.join(emp_list)
 
             if emp_line.find(',', emp_line.find(',')+1) >0:
