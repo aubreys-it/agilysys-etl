@@ -30,6 +30,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         "Aubrey's Cedar Bluff": 4,
         "Aubrey's Maryville": 5,
         "Aubrey's Hixson": 6,
+        "Aubrey's Lenoir City": 8,
         "Aubrey's Papermill": 9,
         "Aubrey's Cleveland": 11,
         "Bluetick Tavern": 12,
