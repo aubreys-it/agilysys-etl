@@ -28,19 +28,19 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     dropCols = [
         'Total',
-        'Total_1',
-        'Total_2',
-        'Total_3',
-        'Total_4',
-        'Total_5',
-        'Total_6',
-        'Total_7',
-        'Total_8',
-        'Total_9',
-        'Total_10',
-        'Total_11',
-        'Total_12',
-        'Total_13'
+        'Total.1',
+        'Total.2',
+        'Total.3',
+        'Total.4',
+        'Total.5',
+        'Total.6',
+        'Total.7',
+        'Total.8',
+        'Total.9',
+        'Total.10',
+        'Total.11',
+        'Total.12',
+        'Total.13'
         ]
     
     locId = 99
