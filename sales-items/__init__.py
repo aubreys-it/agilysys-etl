@@ -13,33 +13,36 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     csvFileName = csvInURI[csvInURI.find('csv') + 4:]
 
     cashCols = [
-    'GA_Account_GA_Balance',
-    'Check_Level_Data_With_Item_Item_Void_Amount',
-    'Check_Level_Data_With_Item_Consumed_Cost',
-    'Check_Level_Data_With_Item_Consumed_Weight',
-    'Check_Level_Data_With_Item_Gross_Revenue',
-    'Check_Level_Data_With_Item_Discount',
-    'Check_Level_Data_With_Item_Net_Revenue',
-    'Check_Level_Data_With_Item_Lost_Revenue',
-    'Check_Level_Data_With_Item_Retail_Value',
-    'Check_Level_Data_With_Item_Tax_Amount',
-    'Check_Level_Data_With_Item_Revenue_Weight',
-    'Check_Level_Data_With_Item_Revenue_Cost',
-    'Total',
-    'Total_1',
-    'Total_2',
-    'Total_3',
-    'Total_4',
-    'Total_5',
-    'Total_6',
-    'Total_7',
-    'Total_8',
-    'Total_9',
-    'Total_10',
-    'Total_11',
-    'Total_12',
-    'Total_13'
-    ]
+        'GA_Account_GA_Balance',
+        'Check_Level_Data_With_Item_Item_Void_Amount',
+        'Check_Level_Data_With_Item_Consumed_Cost',
+        'Check_Level_Data_With_Item_Consumed_Weight',
+        'Check_Level_Data_With_Item_Gross_Revenue',
+        'Check_Level_Data_With_Item_Discount',
+        'Check_Level_Data_With_Item_Net_Revenue',
+        'Check_Level_Data_With_Item_Lost_Revenue',
+        'Check_Level_Data_With_Item_Retail_Value',
+        'Check_Level_Data_With_Item_Tax_Amount',
+        'Check_Level_Data_With_Item_Revenue_Weight',
+        'Check_Level_Data_With_Item_Revenue_Cost'
+        ]
+
+    dropCols = [
+        'Total',
+        'Total_1',
+        'Total_2',
+        'Total_3',
+        'Total_4',
+        'Total_5',
+        'Total_6',
+        'Total_7',
+        'Total_8',
+        'Total_9',
+        'Total_10',
+        'Total_11',
+        'Total_12',
+        'Total_13'
+        ]
     
     locId = 99
 
@@ -73,6 +76,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     df = pd.read_csv(csvInURI, low_memory=False)
     df.insert(0, 'locId', '')
     df['locId'] = df['Location_Enterprise'].map(loc_dict).fillna(locId)
+
+    for col in dropCols:
+        df.drop(labels=col, axis=1, inplace=True)
 
     df=df.map(lambda x: x.replace('$', '').replace(',', '') if isinstance(x, str) else x)
     
