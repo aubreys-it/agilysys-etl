@@ -8,7 +8,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     csvInURI = req.params.get("uri")
     csvSAS = os.environ['DATALAKE_SAS']
-    csvInURI = os.environ['DATALAKE_ITEM_SALES_PREPROCESS']
     csvOutURI = os.environ['DATALAKE_ITEM_SALES_DATA']
     csvFileName = csvInURI[csvInURI.find('csv') + 4:]
 
