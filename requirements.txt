@@ -3,8 +3,10 @@
 # Manually managing azure-functions-worker may cause unexpected issues
 
 azure-functions
-pandas~=1.3.4
+# pandas~=1.3.4
+pandas
 azure-storage-blob==12.8.0
-numpy~=1.23.5
+# numpy~=1.23.5
+numpy
 openpyxl
 azure-storage-blob==12.8.0
