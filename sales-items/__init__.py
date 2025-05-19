@@ -74,7 +74,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     df = pd.read_csv(csvInURI, low_memory=False)
     df.insert(0, 'locId', '')
-    df['locId'] = df['Location_Enterprise'].map(loc_dict).fillna(locId)
+    df['locId'] = df['Location_Enterprise'].map(loc_dict).fillna(locId).astype(int)
 
     for col in dropCols:
         df.drop(labels=col, axis=1, inplace=True)
@@ -91,7 +91,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     csv_container = ContainerClient.from_container_url(csvOutURI + csvSAS)
     csv_client = csv_container.get_blob_client(csvFileName)
     if not csv_client.exists():
-        csv_client.upload_blob(data=df.to_csv(index=False, header=False))
+        csv_client.upload_blob(data=df.to_csv(index=False, header=False, lineterminator='\r\n'))
         return func.HttpResponse('True')
     else:
         return func.HttpResponse('False')
