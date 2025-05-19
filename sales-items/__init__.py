@@ -9,7 +9,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     csvInURI = req.params.get("uri")
     csvSAS = os.environ['DATALAKE_SAS']
     csvOutURI = os.environ['DATALAKE_ITEM_SALES_DATA']
-    csvFileName = csvInURI[csvInURI.find('csv') + 4:]
+    csvFileName = csvInURI[csvInURI.rfind("/")+1:]
 
     cashCols = [
         'GA_Account_GA_Balance',
