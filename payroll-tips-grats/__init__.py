@@ -94,7 +94,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     csv_container = ContainerClient.from_container_url(csvURI + csvSAS)
     csv_client = csv_container.get_blob_client(csv_file)
     if not csv_client.exists():
-        csv_client.upload_blob(data=df.to_csv(index=False, header=False, line_terminator='\r\n'))
+        csv_client.upload_blob(data=df.to_csv(index=False, header=False, lineterminator='\r\n'))
         return func.HttpResponse('True')
     else:
         return func.HttpResponse('False')
