@@ -46,7 +46,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         for line in txt_data:
             #Get Menu Item Header Information
             item_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
-            mi_line = loc_id + ',' + re.sub("{.*?}", "", line)
+            mi_line = loc_id + ',' + re.sub(",{.*?}", "", line)
             mi_csv_lines.append(mi_line)
 
             #Get Price Level Information
