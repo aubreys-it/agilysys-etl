@@ -49,7 +49,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             mi_line = loc_id + ',' + re.sub(",{.*?}", "", line).replace('$','').replace(',""',',')
             mi_line = re.sub('(?<!,)"(?!,)', '""', mi_line)  # Replace single commas with double quotes if not surrounded by commas
             mi_line = ''.join(filter(lambda char: ord(char) in range(32, 127), mi_line))  # Remove non-printable characters
-            mi_csv_lines.append(mi_line)
+            if len(mi_line) > 5:
+                # Only append if the line is not empty after processing
+                mi_csv_lines.append(mi_line)
 
             #Get Price Level Information
             openBracketPos = line.find('{')
