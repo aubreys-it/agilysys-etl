@@ -11,7 +11,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     mi_csvURI = os.environ['DATALAKE_MI_HEADER_URL']
     miPriceLevels_csvURI = os.environ['DATALAKE_MI_PRICE_LEVELS_URL']
     miSkuCodes_csvURI = os.environ['DATALAKE_MI_SKU_CODES_URL']
-    miChoiceGroups_csvURI = os.environ['DATALAKE_MI_CHOICE GROUPS_URL']
+    miChoiceGroups_csvURI = os.environ['DATALAKE_MI_CHOICE_GROUPS_URL']
     miPrinters_csvURI = os.environ['DATALAKE_MI_PRINTERS_URL']
     miStorePriceLevels_csvURI = os.environ['DATALAKE_MI_STORE_PRICE_LEVELS_URL']
 
