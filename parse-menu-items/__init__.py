@@ -84,7 +84,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
            #Get Store Price Level Information
             openBracketPos = line.find('{', closeBracketPos)
             closeBracketPos = line.find('}', openBracketPos)
-            store_price_line = line[openBracketPos+1:closeBracketPos]
+            store_price_line = line[openBracketPos+1:closeBracketPos].replace('$','')
             store_price_values = store_price_line.split(',')
             for i in range(int(len(store_price_values)/2)):
                 storePriceLevels_csv_lines.append(f'{loc_id},{item_id},{store_price_values[i*2]},{store_price_values[i*2+1]}')
