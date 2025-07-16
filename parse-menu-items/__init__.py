@@ -47,6 +47,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             #Get Menu Item Header Information
             item_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
             mi_line = loc_id + ',' + re.sub(",{.*?}", "", line).replace('$','').replace('""','')
+            mi_line = re.sub('(?<!,)",(?!,)', '""', mi_line)  # Replace single commas with double quotes if not surrounded by commas
             mi_csv_lines.append(mi_line)
 
             #Get Price Level Information
