@@ -46,7 +46,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         for line in txt_data:
             #Get Menu Item Header Information
             item_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
-            mi_line = loc_id + ',' + re.sub(",{.*?}", "", line).replace('$','').replace(',""',',')
+            mi_line = loc_id + ',' + re.sub(",{.*?}", "", line).replace('$','')
+            mi_line = ','.join(['' if x == '""' else x for x in mi_line.split(',')])  # Replace empty double quotes with empty strings
             mi_line = re.sub('(?<!,)"(?!,)', '""', mi_line)  # Replace single commas with double quotes if not surrounded by commas
             mi_line = ''.join(filter(lambda char: ord(char) in range(32, 127), mi_line))  # Remove non-printable characters
             if len(mi_line) > 5:
