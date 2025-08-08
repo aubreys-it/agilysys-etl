@@ -10,6 +10,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info(f'Txt URI: {txtURI}')
     csvURI = txtURI[:txtURI.rfind('/')].replace('import', 'export')
     txt_file = txtURI[txtURI.rfind('/')+1:]
+    txtURI = txtURI[:txtURI.rfind('/')]
     csv_file = txt_file.replace('.txt', '.csv')
     txtSAS = os.environ['EMP_SAS']
     
