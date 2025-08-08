@@ -29,10 +29,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         for line in txt_data:
             #Get Csv File Line Information
-            item_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
+            #item_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
             mi_line = loc_id + ',' + re.sub(",{.*?}", "", line).replace('$','')
             mi_line = ','.join(['' if x == '""' else x for x in mi_line.split(',')])  # Replace empty double quotes with empty strings
             mi_line = re.sub('(?<!,)"(?!,)', '""', mi_line)  # Replace single double quote with double double quotes if not surrounded by commas
+            if mi_line[-2:] == '""': # Replace trailing double quotes with a single double quote
+                mi_line = mi_line[:-2] + '"'
             mi_line = ''.join(filter(lambda char: ord(char) in range(32, 127), mi_line))  # Remove non-printable characters
             if len(mi_line) > 5:
                 # Only append if the line is not empty after processing
