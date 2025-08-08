@@ -48,7 +48,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         
 
-        if len(csv_lines)>5:
+        if len(csv_lines)>10:
+            logging.info(f'Writing {len(csv_lines)} lines to CSV file: {csv_file}')
             csv_data = '\r\n'.join(csv_lines)
             csv_client = ContainerClient.from_container_url(csvURI + txtSAS)
             csv_client.get_blob_client(csv_file).upload_blob(csv_data, overwrite=True)
