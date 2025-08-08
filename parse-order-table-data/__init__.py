@@ -1,5 +1,6 @@
 import logging, os
 import re
+import pandas as pd
 import azure.functions as func
 from azure.storage.blob import ContainerClient
 
@@ -23,6 +24,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     else:
         txt_data = txt_blob_client.download_blob().readall()
         txt_data = txt_data.decode('utf-8').split('\r\n')
+        # load txt_data into pandas dataframe
+
+        df = pd.DataFrame(txt_data)
+        df = df.applymap(lambda x: re.sub(r'(?<!\w)"(?!\w)', '""', x) if isinstance(x, str) else x)  # Replace single double quotes with double double quotes
+        txt_data = df.to_csv(index=False, header=False).split('\r\n')
 
         loc_id = txt_file[9:11]
         csv_lines = []
@@ -31,18 +37,22 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             #Get Csv File Line Information
             #item_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
             mi_line = loc_id + ',' + re.sub(",{.*?}", "", line).replace('$','')
-            mi_line = ','.join(['' if x == '""' else x for x in mi_line.split(',')])  # Replace empty double quotes with empty strings
-            mi_line = re.sub('(?<!,)"(?!,)', '""', mi_line)  # Replace single double quote with double double quotes if not surrounded by commas
-            if mi_line[-2:] == '""': # Replace trailing double quotes with a single double quote
-                mi_line = mi_line[:-2] + '"'
-            mi_line = ''.join(filter(lambda char: ord(char) in range(32, 127), mi_line))  # Remove non-printable characters
+            # mi_line = ','.join(['' if x == '""' else x for x in mi_line.split(',')])  # Replace empty double quotes with empty strings
+            # mi_line = re.sub('(?<!,)"(?!,)', '""', mi_line)  # Replace single double quote with double double quotes if not surrounded by commas
+            # if mi_line.startswith('""'):
+            #    mi_line = mi_line[1:]
+            # if mi_line.endswith('""'):
+            #    mi_line = mi_line[:-1]
+            # mi_line = ''.join(filter(lambda char: ord(char) in range(32, 127), mi_line))  # Remove non-printable characters
             if len(mi_line) > 5:
                 # Only append if the line is not empty after processing
                 csv_lines.append(mi_line)
 
-        csv_data = '\r\n'.join(csv_lines)
+        
 
-        csv_client = ContainerClient.from_container_url(csvURI + txtSAS)
-        csv_client.get_blob_client(csv_file).upload_blob(csv_data, overwrite=True)
+        if len(csv_lines)>0:
+            csv_data = '\r\n'.join(csv_lines)
+            csv_client = ContainerClient.from_container_url(csvURI + txtSAS)
+            csv_client.get_blob_client(csv_file).upload_blob(csv_data, overwrite=True)
 
         return func.HttpResponse('True')
