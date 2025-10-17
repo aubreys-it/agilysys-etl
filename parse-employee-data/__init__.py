@@ -23,7 +23,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse('False')
     else:
         txt_data = txt_blob_client.download_blob().readall()
-        txt_data = txt_data.decode('utf-8').split('\r\n')
+        txt_data = txt_data.decode('utf-8-sig').split('\r\n')
 
         loc_id = txt_file[9:11]
 
