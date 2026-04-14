@@ -28,9 +28,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     # --- Pull parameters from request ---
     xlsURI      = req.params.get("uri")
-    run_id      = req.params.get("run_id")
-    payroll_date = req.params.get("payroll_date")
-
+    
     # --- Validate required parameters ---
     if not xlsURI:
         return func.HttpResponse('Missing required parameter: uri', status_code=400)
@@ -97,6 +95,26 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logging.error(f'SQL connection failed: {str(e)}')
         return func.HttpResponse(f'SQL connection failed: {str(e)}', status_code=500)
+    
+    # --- Look up active run_id and payroll_date from database ---
+    try:
+        cursor.execute("""
+            SELECT 
+                CAST(pr.fn_get_active_run_id(CAST(GETUTCDATE() AS DATE)) AS NVARCHAR(36)) AS run_id,
+                CAST(GETUTCDATE() AS DATE) AS payroll_date
+        """)
+        row = cursor.fetchone()
+        if row and row[0]:
+            run_id       = row[0]
+            payroll_date = str(row[1])
+        else:
+            run_id       = '00000000-0000-0000-0000-000000000000'
+            payroll_date = datetime.utcnow().strftime('%Y-%m-%d')
+            logging.warning('No active payroll run found, using sentinel run_id')
+    except Exception as e:
+        run_id       = '00000000-0000-0000-0000-000000000000'
+        payroll_date = datetime.utcnow().strftime('%Y-%m-%d')
+        logging.error(f'run_id lookup failed: {str(e)}')
 
     # --- Check if CSV already exists ---
     csv_container = ContainerClient.from_container_url(csvURI + csvSAS)

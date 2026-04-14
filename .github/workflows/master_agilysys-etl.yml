@@ -42,6 +42,7 @@ jobs:
             --exclude "venv/*" \
             --exclude "__pycache__/*" \
             --exclude "*.pyc" \
+            --exclude "*.old" \
 
       - name: Verify zip file
         run: unzip -l release.zip | grep requirements
