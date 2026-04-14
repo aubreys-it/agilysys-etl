@@ -39,6 +39,9 @@ jobs:
             --exclude "*.pyc" \
             --exclude ".python_packages/*"
 
+      - name: Verify zip file
+        run: unzip -l release.zip | grep requirements
+
       - name: Login to Azure
         uses: azure/login@v1
         with:
@@ -59,3 +62,7 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
             --src release.zip
+
+          az functionapp restart \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_FUNCTIONAPP_NAME }}
