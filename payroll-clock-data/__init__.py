@@ -44,7 +44,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     # --- Environment variables ---
     csvSAS  = os.environ['DATALAKE_SAS']
     csvURI  = os.environ['DATALAKE_CLOCK_DATA_URL']
-    sqlConn = os.environ['SQL_CONNECTION_STRING']
+    #sqlConn = os.environ['SQL_CONNECTION_STRING']
 
     # --- Derive file names ---
     xls_file = xlsURI[xlsURI.find('xlsx') + 4:]
