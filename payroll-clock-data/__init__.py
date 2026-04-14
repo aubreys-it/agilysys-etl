@@ -32,18 +32,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     # --- Validate required parameters ---
     if not xlsURI:
         return func.HttpResponse('Missing required parameter: uri', status_code=400)
-    if not run_id:
-        run_id = '00000000-0000-0000-0000-000000000000'
-        logging.warning('No run_id provided, using sentinel value')
-    if not payroll_date:
-        payroll_date = datetime.utcnow().strftime('%Y-%m-%d')
-        logging.warning('No payroll_date provided, defaulting to today')
 
     # --- Environment variables ---
     csvSAS  = os.environ['DATALAKE_SAS']
     csvURI  = os.environ['DATALAKE_CLOCK_DATA_URL']
-    #sqlConn = os.environ['SQL_CONNECTION_STRING']
-
+   
     # --- Derive file names ---
     xls_file = xlsURI[xlsURI.find('xlsx') + 4:]
     csv_file = xls_file[1:-5] + '.csv'
@@ -82,7 +75,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         'profitCenterID', 'clock_out', 'clock_period', 'report_period_hours'
     ]
 
-    # --- Open SQL connection ---
     # --- Open SQL connection ---
     try:
         conn = pymssql.connect(
