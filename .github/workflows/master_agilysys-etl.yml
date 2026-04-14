@@ -8,6 +8,7 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_NAME: 'agilysys-etl'
+  AZURE_RESOURCE_GROUP: 'agilysys-etl_group'
   PYTHON_VERSION: '3.10'
 
 jobs:
