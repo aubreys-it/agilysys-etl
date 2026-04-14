@@ -10,3 +10,4 @@ azure-storage-blob==12.8.0
 numpy
 openpyxl
 azure-storage-blob==12.8.0
+pyodbc
