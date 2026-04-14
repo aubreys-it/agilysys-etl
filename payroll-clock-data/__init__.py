@@ -2,7 +2,7 @@ import logging, os
 import pandas as pd
 import azure.functions as func
 from azure.storage.blob import ContainerClient
-import pyodbc
+import pymssql
 from datetime import datetime
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
@@ -14,22 +14,15 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         y = s[s.rfind('/')+1:]
         return y + '/' + m + '/' + d
 
-    def log_audit(cursor, run_id, payroll_date, step_name, status, 
-                  loc_id=None, row_count=None, file_name=None, message=None):
+    def log_audit(cursor, conn, run_id, payroll_date, step_name, status,
+              loc_id=None, row_count=None, file_name=None, message=None):
         try:
             cursor.execute(
-                "EXEC pr.usp_log_pipeline_step ?, ?, ?, ?, ?, ?, ?, ?, ?",
-                run_id,
-                payroll_date,
-                step_name,
-                status,
-                loc_id,
-                'CLOCK_DETAIL',
-                row_count,
-                file_name,
-                message
+                "EXEC pr.usp_log_pipeline_step %s, %s, %s, %s, %s, %s, %s, %s, %s",
+                (run_id, payroll_date, step_name, status, loc_id,
+                'CLOCK_DETAIL', row_count, file_name, message)
             )
-            cursor.commit()
+            conn.commit()
         except Exception as e:
             logging.error(f'Audit log failed: {str(e)}')
 
@@ -92,12 +85,17 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     ]
 
     # --- Open SQL connection ---
+    # --- Open SQL connection ---
     try:
-        conn   = pyodbc.connect(sqlConn)
+        conn = pymssql.connect(
+            server   = os.environ['SQL_SERVER'],
+            user     = os.environ['SQL_USER'],
+            password = os.environ['SQL_PASSWORD'],
+            database = os.environ['SQL_DATABASE']
+        )
         cursor = conn.cursor()
     except Exception as e:
         logging.error(f'SQL connection failed: {str(e)}')
-        # Can't log to audit table if we can't connect, just return error
         return func.HttpResponse(f'SQL connection failed: {str(e)}', status_code=500)
 
     # --- Check if CSV already exists ---
@@ -170,7 +168,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     except Exception as e:
         log_audit(
-            cursor, run_id, payroll_date,
+            cursor, conn, run_id, payroll_date,
             step_name = 'CSV_CONVERT',
             status    = 'FAILED',
             file_name = csv_file,
@@ -185,7 +183,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
     except Exception as e:
         log_audit(
-            cursor, run_id, payroll_date,
+            cursor, conn, run_id, payroll_date,
             step_name = 'CSV_CONVERT',
             status    = 'FAILED',
             loc_id    = locId,
@@ -196,7 +194,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     # --- Log success ---
     log_audit(
-        cursor, run_id, payroll_date,
+        cursor, conn, run_id, payroll_date,
         step_name = 'CSV_CONVERT',
         status    = 'SUCCESS',
         loc_id    = locId,
