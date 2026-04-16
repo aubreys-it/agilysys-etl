@@ -92,6 +92,7 @@ import pymssql
 
 # All active location IDs
 ACTIVE_LOCATIONS = [2,3,4,5,6,8,9,11,12,13,14,16,17,18,19,20,21,22,23,24,25,35]
+x = 1 #debug to force Github actions to run on push, can remove later
 
 def get_sftp_client():
     transport = paramiko.Transport((os.environ['SFTP_HOST'], int(os.environ.get('SFTP_PORT', 22))))
