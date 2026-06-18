@@ -16,22 +16,50 @@ Request body (JSON)
     "report_data":  "<base64-encoded .xlsx bytes>"
 }
 
+Report format
+-------------
+IG generates a "Closed Checks" report grouped by Check Type then Table
+Number. The workbook layout is:
+
+    Row 0:  "Closed Checks"
+    Row 2:  "Processed Business Period Starting M/D/YYYY H:MM AM and Ending ..."
+    Row 4:  "Grouped by: Check Type, Table Number"    ← integrity check
+    Row 9:  "Selected For: Store = ..."
+    ...
+    "Check Type:<value>"                              ← L1 grouping header
+    "    Table Number:<value>"                        ← L2 grouping header (leading spaces)
+    "Closed Date/Time"  ...column headers...          ← repeated per Table Number block
+    <data rows>
+    "Table Number Total" ...                          ← sub-total row (skip)
+    "# of transactions: " ...                         ← sub-count row (skip)
+    ... (next Table Number block) ...
+    "Check Type Total" ...                            ← section total row (skip)
+    "# of transactions: " ...                         ← section count row (skip)
+    ... (next Check Type block) ...
+    "Grand Total" ...                                 ← stop parsing here
+
+The Check Type value and Table Number value from each grouping header
+are injected into every data row under that header as "checkType" and
+"tableNumber" fields.
+
 Behaviour
 ---------
 1. Decodes and opens the Excel workbook in memory.
-2. Parses the "Processed Business Period" header line to get the report
+2. Validates that the report is grouped by "Check Type, Table Number"
+   (integrity check — rejects reports with a different grouping).
+3. Parses the "Processed Business Period" header line to get the report
    start/end datetimes.
-3. Derives a business date per row using a 4:00 AM cutoff:
-       closedDateTime >= 04:00  ->  businessDate = closedDateTime.date()
-       closedDateTime <  04:00  ->  businessDate = closedDateTime.date() - 1 day
+4. Derives a business date per row using a 4:00 AM cutoff:
+       closedDateTime.hour >= 4  ->  businessDate = closedDateTime.date()
+       closedDateTime.hour <  4  ->  businessDate = closedDateTime.date() - 1 day
    This correctly handles both single-day and multi-day (back-fill) reports.
-4. Checks both ig.hs_sales_landing AND ig.hs_sales for any existing rows
-   covering the same locId + business date range.  Returns HTTP 409 if a
+5. Checks both ig.hs_sales_landing AND ig.hs_sales for any existing rows
+   covering the same locId + business date range. Returns HTTP 409 if a
    conflict is found so Power Automate can alert and stop.
-5. Extracts all data rows (skipping header, section-header, and footer
-   rows), converts Excel serial date numbers to datetimes, and uploads a
-   JSON array to Azure Blob Storage -- one blob per business date.
-6. Returns a JSON summary on success.
+6. Extracts all data rows (skipping sub-total, sub-count, section-total,
+   and section-count rows), and uploads a JSON array to Azure Blob Storage
+   -- one blob per business date.
+7. Returns a JSON summary on success.
 
 The downstream ADF/Power Automate pipeline reads the blob and bulk-inserts
 into ig.hs_sales_landing.
@@ -63,23 +91,29 @@ from azure.storage.blob import BlobClient, ContentSettings
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
-EXCEL_EPOCH = datetime(1899, 12, 30)
 BUSINESS_DAY_START_HOUR = 4
 
-FOOTER_MARKERS = ("Profit Center Total", "Grand Total", "# of transactions:")
+# Expected value in the "Grouped by:" header row — enforced as an integrity check.
+EXPECTED_GROUPING = "Check Type, Table Number"
+
+# Row markers — rows whose first cell starts with any of these are skipped or
+# signal the end of the data section.
+SKIP_ROW_PREFIXES = (
+    "Table Number Total",
+    "Check Type Total",
+    "# of transactions:",
+)
+STOP_ROW_PREFIX = "Grand Total"
+
+# L1 / L2 grouping header prefixes (after stripping leading whitespace)
+CHECK_TYPE_PREFIX  = "Check Type:"
+TABLE_NUMBER_PREFIX = "Table Number:"
+
+# The column header sentinel that marks the start of a data block
+COL_HEADER_SENTINEL = "Closed Date/Time"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-
-def excel_serial_to_datetime(serial):
-    """Convert an Excel date serial number to a Python datetime."""
-    if serial is None:
-        return None
-    try:
-        return EXCEL_EPOCH + timedelta(days=float(serial))
-    except (TypeError, ValueError):
-        return None
-
 
 def business_date_from_closed(closed_dt, fallback):
     """
@@ -111,18 +145,37 @@ def safe_int(value):
         return None
 
 
-def is_footer_row(row):
-    first = str(row[0] or "").strip()
-    return any(first.startswith(m) for m in FOOTER_MARKERS)
+def first_cell(row):
+    """Return the first cell value as a stripped string, or '' if row is empty."""
+    if not row:
+        return ""
+    return str(row[0] or "").strip()
 
 
-def is_section_header_row(row):
-    """Rows like '    Profit Center:Aubrey's Maryville(959)' between data blocks."""
-    first = str(row[0] or "").strip()
-    return first.startswith("Profit Center:")
+# ── Report validation ──────────────────────────────────────────────────────────
 
+def validate_grouping(ws_rows):
+    """
+    Integrity check: confirm the report is grouped by 'Check Type, Table Number'.
+    Looks for a row starting with 'Grouped by:' and verifies the value matches.
+    Raises ValueError if the grouping is missing or unexpected.
+    """
+    for row in ws_rows[:15]:  # The header is always in the first few rows
+        cell = first_cell(row)
+        if cell.startswith("Grouped by:"):
+            grouping_value = cell[len("Grouped by:"):].strip()
+            if grouping_value != EXPECTED_GROUPING:
+                raise ValueError(
+                    f"Unexpected report grouping: '{grouping_value}'. "
+                    f"Expected: '{EXPECTED_GROUPING}'. "
+                    f"This function only processes reports grouped by Check Type then Table Number."
+                )
+            return  # Found and valid
+    raise ValueError(
+        f"Could not find 'Grouped by:' header in the first 15 rows of the report. "
+        f"This does not appear to be the expected Closed Checks report format."
+    )
 
-# ── Report parsing ─────────────────────────────────────────────────────────────
 
 def parse_report_period(ws_rows):
     """
@@ -154,41 +207,90 @@ def parse_report_period(ws_rows):
     return start_dt, end_dt
 
 
-def find_column_header_row(ws_rows):
-    """Return the index of the row containing 'Closed Date/Time'."""
-    for i, row in enumerate(ws_rows):
-        if row[0] is not None and "Closed Date" in str(row[0]):
-            return i
-    raise ValueError("Could not find column header row ('Closed Date/Time') in report.")
+# ── Row classification ─────────────────────────────────────────────────────────
 
+def classify_row(row):
+    """
+    Classify a worksheet row into one of several categories.
+
+    Returns one of:
+        'empty'         — all cells are None / blank
+        'stop'          — Grand Total row; caller should halt iteration
+        'skip'          — sub-total, sub-count, or section-total row
+        'check_type'    — L1 grouping header ("Check Type:<value>")
+        'table_number'  — L2 grouping header ("    Table Number:<value>")
+        'col_header'    — repeated column header row ("Closed Date/Time ...")
+        'data'          — transaction data row
+    """
+    if all(c is None or str(c).strip() == "" for c in row):
+        return "empty"
+
+    cell = first_cell(row)
+
+    if cell.startswith(STOP_ROW_PREFIX):
+        return "stop"
+
+    if any(cell.startswith(p) for p in SKIP_ROW_PREFIXES):
+        return "skip"
+
+    # Check Type header — no leading whitespace in the raw cell value
+    if cell.startswith(CHECK_TYPE_PREFIX):
+        return "check_type"
+
+    # Table Number header — raw cell has leading spaces; first_cell strips them
+    if cell.startswith(TABLE_NUMBER_PREFIX):
+        return "table_number"
+
+    if cell == COL_HEADER_SENTINEL:
+        return "col_header"
+
+    return "data"
+
+
+# ── Report parsing ─────────────────────────────────────────────────────────────
 
 def parse_data_rows(ws_rows, loc_id, report_start_dt, report_end_dt):
     """
-    Parse all data rows from the workbook.
+    Parse all data rows from the workbook, injecting the current Check Type
+    and Table Number values as additional fields on each record.
 
     Returns a dict keyed by business date so the caller can write one
     blob per business date -- important for multi-day back-fill reports.
     """
     fallback_date    = report_start_dt.date()
     upload_ts        = datetime.utcnow().isoformat()
-    header_row_idx   = find_column_header_row(ws_rows)
     rows_by_date     = {}
 
-    for row in ws_rows[header_row_idx + 1:]:
-        # Skip entirely empty rows
-        if all(cell is None or str(cell).strip() == "" for cell in row):
-            continue
-        # Footer reached -- stop
-        if is_footer_row(row):
+    current_check_type   = None
+    current_table_number = None
+
+    # Skip the preamble rows (title, period, metadata) — scanning starts from
+    # row 0 and the classifier handles everything.
+    for row in ws_rows:
+        kind = classify_row(row)
+
+        if kind == "stop":
             break
-        # Section-header rows appear in multi-profit-centre reports
-        if is_section_header_row(row):
+
+        if kind in ("empty", "skip", "col_header"):
             continue
 
-        # Column order: closedDateTime, checkNo, ctId, mpId, serverId, cashierId,
-        #               grossRevenue, discount, tax, gratSvcChg, tip, roundedAmount,
-        #               checkTotal, tenderId, tender, changeAmt, breakage, netTender
-        closed_dt = excel_serial_to_datetime(row[0])
+        if kind == "check_type":
+            current_check_type   = first_cell(row)[len(CHECK_TYPE_PREFIX):]
+            current_table_number = None   # reset — new L1 block
+            continue
+
+        if kind == "table_number":
+            current_table_number = first_cell(row)[len(TABLE_NUMBER_PREFIX):]
+            continue
+
+        # kind == "data"
+        # Rows that appear before the first "Check Type:" header are preamble
+        # rows (report title, store name, etc.) and should be skipped.
+        if current_check_type is None:
+            continue
+
+        closed_dt = row[0] if isinstance(row[0], datetime) else None
         biz_date  = business_date_from_closed(closed_dt, fallback_date)
 
         record = {
@@ -196,6 +298,8 @@ def parse_data_rows(ws_rows, loc_id, report_start_dt, report_end_dt):
             "businessDate":   biz_date.isoformat(),
             "reportStartDt":  report_start_dt.isoformat(),
             "reportEndDt":    report_end_dt.isoformat(),
+            "checkType":      current_check_type,
+            "tableNumber":    current_table_number,
             "closedDateTime": closed_dt.isoformat() if closed_dt else None,
             "checkNo":        safe_int(row[1]),
             "ctId":           safe_int(row[2]),
@@ -322,6 +426,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logging.error(f"parse-ig-sales-report: workbook parse failed: {e}")
         return func.HttpResponse(f"Failed to open Excel file: {e}", status_code=422)
+
+    # Integrity check: confirm report is grouped by Check Type, Table Number
+    try:
+        validate_grouping(ws_rows)
+    except ValueError as e:
+        logging.error(f"parse-ig-sales-report: grouping validation failed: {e}")
+        return func.HttpResponse(str(e), status_code=422)
 
     # Parse report period from header
     try:
