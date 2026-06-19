@@ -54,12 +54,15 @@ Behaviour
        closedDateTime.hour <  4  ->  businessDate = closedDateTime.date() - 1 day
    This correctly handles both single-day and multi-day (back-fill) reports.
 5. Checks both ig.hs_sales_landing AND ig.hs_sales for any existing rows
-   covering the same locId + business date range. Returns HTTP 409 if a
-   conflict is found so Power Automate can alert and stop.
-6. Extracts all data rows (skipping sub-total, sub-count, section-total,
-   and section-count rows), and uploads a JSON array to Azure Blob Storage
-   -- one blob per business date.
-7. Returns a JSON summary on success.
+   covering the same locId + business date range.  Dates that already have
+   data are skipped (not re-uploaded); clean dates proceed normally.  This
+   allows a multi-day back-fill report to be emailed even when some dates
+   in the range are already loaded — only the missing dates are imported.
+   All skipped dates are logged as warnings and included in the response.
+6. Extracts all data rows for clean dates (skipping sub-total, sub-count,
+   section-total, and section-count rows), and uploads a JSON array to
+   Azure Blob Storage -- one blob per business date.
+7. Returns a JSON summary on success, including any skipped dates.
 
 The downstream ADF/Power Automate pipeline reads the blob and bulk-inserts
 into ig.hs_sales_landing.
@@ -462,27 +465,48 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     all_business_dates = sorted(rows_by_date.keys())
 
-    # Duplicate check against both landing and archive tables
+    # Duplicate check against both landing and archive tables.
+    # Conflicting dates are skipped individually; clean dates proceed.
+    # This allows partial back-fills when some dates in a multi-day
+    # report are already loaded.
     try:
         conflicting_dates = check_existing_data(location_id, all_business_dates)
     except Exception as e:
         logging.error(f"parse-ig-sales-report: DB duplicate check failed: {e}")
         return func.HttpResponse(f"Database check failed: {e}", status_code=500)
 
+    skipped_dates = []
     if conflicting_dates:
-        conflict_strs = [
+        conflict_set  = {
             d.isoformat() if isinstance(d, date) else str(d)
             for d in conflicting_dates
-        ]
+        }
+        skipped_dates = sorted(conflict_set)
+        for skipped in skipped_dates:
+            logging.warning(
+                f"parse-ig-sales-report: locId={location_id} date={skipped} "
+                f"already exists in ig.hs_sales_landing or ig.hs_sales — skipped."
+            )
+        # Remove conflicting dates from the upload set
+        rows_by_date = {
+            d: r for d, r in rows_by_date.items()
+            if d.isoformat() not in conflict_set
+        }
+
+    if not rows_by_date:
         msg = (
-            f"Data already exists for locId={location_id} on: "
-            f"{', '.join(conflict_strs)}. Upload skipped."
+            f"All {len(skipped_dates)} date(s) in this report already have data "
+            f"for locId={location_id}. Nothing to upload."
         )
         logging.warning(f"parse-ig-sales-report: {msg}")
         return func.HttpResponse(
-            json.dumps({"status": "conflict", "reason": msg, "conflictDates": conflict_strs}),
+            json.dumps({
+                "status":       "skipped",
+                "reason":       msg,
+                "skippedDates": skipped_dates,
+            }),
             mimetype="application/json",
-            status_code=409,
+            status_code=200,
         )
 
     # Upload one blob per business date
@@ -506,11 +530,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     return func.HttpResponse(
         json.dumps({
-            "status":      "success",
-            "locId":       location_id,
-            "reportStart": report_start_dt.isoformat(),
-            "reportEnd":   report_end_dt.isoformat(),
-            "uploads":     results,
+            "status":       "success",
+            "locId":        location_id,
+            "reportStart":  report_start_dt.isoformat(),
+            "reportEnd":    report_end_dt.isoformat(),
+            "uploads":      results,
+            "skippedDates": skipped_dates,
         }),
         mimetype="application/json",
         status_code=200,
