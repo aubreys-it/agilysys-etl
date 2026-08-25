@@ -7,6 +7,8 @@ import pymssql
 
 # All active location IDs
 ACTIVE_LOCATIONS = [2,3,4,5,6,8,9,11,12,13,14,16,17,18,19,20,21,22,23,24,25,35]
+EMP_FIELD_COUNT_BASE = 26
+EMP_FIELD_COUNT_WITH_PASSCODE = EMP_FIELD_COUNT_BASE + 1
 
 def get_sftp_client():
     transport = paramiko.Transport((os.environ['SFTP_HOST'], int(os.environ.get('SFTP_PORT', 22))))
@@ -25,12 +27,20 @@ def process_file(txt_data: str, loc_id: int):
 
         emp_id = line[line.find(',')+1:line.find(',', line.find(',')+1)]
         emp_line = loc_id_str + ',' + line[:line.find('{')] + line[line.find('}')+2:]
-
         emp_list = emp_line.split(',')
-        if len(emp_list) > 21:
-            emp_list[21] = ''.join([char for char in emp_list[21] if char.isdigit()])
-            emp_line = ','.join(emp_list)
-            emp_csv_lines.append(emp_line)
+
+        if len(emp_list) == EMP_FIELD_COUNT_BASE:
+            emp_list.append('')  # this store's export has no passcode column yet
+        elif len(emp_list) != EMP_FIELD_COUNT_WITH_PASSCODE:
+            logging.error(
+                f'locId {loc_id}: unexpected employee field count '
+                f'({len(emp_list)}) for emp_id {emp_id} — expected '
+                f'{EMP_FIELD_COUNT_BASE} or {EMP_FIELD_COUNT_WITH_PASSCODE}. Skipping row.'
+            )
+            continue
+
+        emp_list[21] = ''.join([char for char in emp_list[21] if char.isdigit()])
+        emp_csv_lines.append(','.join(emp_list))
 
         rop_line = line[line.find('{')+1:line.find('}')].replace('$','')
         rop_values = rop_line.split(',')
