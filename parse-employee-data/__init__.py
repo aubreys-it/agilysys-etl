@@ -77,13 +77,13 @@ def bulk_insert(loc_id: int, conn):
     cursor.execute(f"""
         BULK INSERT ig.v_employees
         FROM '{emp_file}'
-        WITH (DATA_SOURCE='IgEmployeeHeaders', FORMAT='CSV', ROWTERMINATOR='0x0A');
+        WITH (DATA_SOURCE='IgEmployeeHeaders', FORMAT='CSV', ROWTERMINATOR='0x0D0A');
     """)
 
     cursor.execute(f"""
         BULK INSERT ig.v_employee_rop
         FROM '{rop_file}'
-        WITH (DATA_SOURCE='IgEmployeeRop', FORMAT='CSV', ROWTERMINATOR='0x0A');
+        WITH (DATA_SOURCE='IgEmployeeRop', FORMAT='CSV', ROWTERMINATOR='0x0D0A');
     """)
 
     conn.commit()
