@@ -5,8 +5,12 @@ from azure.storage.blob import ContainerClient
 import paramiko
 import pymssql
 
-# All active location IDs
-ACTIVE_LOCATIONS = [2,3,4,5,6,8,9,11,12,13,14,16,17,18,19,20,21,22,23,24,25,35]
+# Legacy backend locations, retrieved via SFTP from the IG host
+SFTP_LOCATIONS = [2,3,4,5,6,8,9,11,12,13,14,16,17,18,19,20,21,22,23,24,25,35]
+
+# Server 12 backend locations, retrieved via aubdatain blob storage
+SERVER12_LOCATIONS = [26]
+
 EMP_FIELD_COUNT_BASE = 26
 EMP_FIELD_COUNT_WITH_PASSCODE = EMP_FIELD_COUNT_BASE + 1
 
@@ -15,8 +19,25 @@ def get_sftp_client():
     transport.connect(username=os.environ['SFTP_USER'], password=os.environ['SFTP_PASSWORD'])
     return paramiko.SFTPClient.from_transport(transport), transport
 
+def get_aubdatain_container_client():
+    return ContainerClient.from_container_url(os.environ['AUBDATAIN_URL'] + os.environ['AUBDATAIN_SAS'])
+
+def get_sftp_employee_file(sftp, loc_id: int) -> str:
+    """Retrieve the raw employee export for a legacy-backend location via SFTP."""
+    loc_id_str = str(loc_id).zfill(2)
+    sftp_path = f'/Home/aubr1.ftpadmin/Export/{loc_id_str}/Emp_Exp.txt'
+    with sftp.open(sftp_path, 'r') as f:
+        return f.read().decode('utf-8-sig')
+
+def get_blob_employee_file(loc_id: int) -> str:
+    """Retrieve the raw employee export for a Server 12 location from aubdatain."""
+    blob_path = f'employees/{loc_id}/Emp_Imp.txt'
+    container_client = get_aubdatain_container_client()
+    blob_client = container_client.get_blob_client(blob_path)
+    return blob_client.download_blob().readall().decode('utf-8-sig')
+
 def process_file(txt_data: str, loc_id: int):
-    """Split raw txt data into employee header and ROP CSV lines."""
+    """Split raw txt data into employee header and ROP CSV lines. Identical for both backends."""
     loc_id_str = str(loc_id).zfill(2)
     emp_csv_lines = []
     rop_csv_lines = []
@@ -49,41 +70,64 @@ def process_file(txt_data: str, loc_id: int):
 
     return '\r\n'.join(emp_csv_lines), '\r\n'.join(rop_csv_lines)
 
-def upload_to_blob(emp_csv: str, rop_csv: str, loc_id: int):
-    """Upload employee header and ROP CSVs to blob storage."""
+def upload_to_blob(emp_csv: str, rop_csv: str, loc_id: int, backend: str):
+    """Upload employee header and ROP CSVs to blob storage. Destination depends on backend."""
     today = datetime.utcnow().strftime('%Y%m%d')
     loc_id_str = str(loc_id).zfill(2)
-    txt_sas = os.environ['EMP_SAS']
-
     emp_file = f'{today}_{loc_id_str}_EMP.csv'
     rop_file = f'{today}_{loc_id_str}_ROP.csv'
 
-    emp_client = ContainerClient.from_container_url(os.environ['DATALAKE_EMPLOYEE_DATA_URL'] + txt_sas)
-    emp_client.get_blob_client(emp_file).upload_blob(emp_csv, overwrite=True)
+    if backend == 'sftp':
+        txt_sas = os.environ['EMP_SAS']
 
-    rop_client = ContainerClient.from_container_url(os.environ['DATALAKE_ROP_DATA_URL'] + txt_sas)
-    rop_client.get_blob_client(rop_file).upload_blob(rop_csv, overwrite=True)
+        emp_client = ContainerClient.from_container_url(os.environ['DATALAKE_EMPLOYEE_DATA_URL'] + txt_sas)
+        emp_client.get_blob_client(emp_file).upload_blob(emp_csv, overwrite=True)
 
-def bulk_insert(loc_id: int, conn):
+        rop_client = ContainerClient.from_container_url(os.environ['DATALAKE_ROP_DATA_URL'] + txt_sas)
+        rop_client.get_blob_client(rop_file).upload_blob(rop_csv, overwrite=True)
+
+    elif backend == 'server12':
+        container_client = get_aubdatain_container_client()
+
+        emp_blob_path = f'employees/{loc_id}/csv/header/{emp_file}'
+        container_client.get_blob_client(emp_blob_path).upload_blob(emp_csv, overwrite=True)
+
+        rop_blob_path = f'employees/{loc_id}/csv/jobcodes/{rop_file}'
+        container_client.get_blob_client(rop_blob_path).upload_blob(rop_csv, overwrite=True)
+
+    else:
+        raise ValueError(f'Unknown backend "{backend}" for locId {loc_id}')
+
+def bulk_insert(loc_id: int, backend: str, conn):
     """Execute BULK INSERT for employee header and ROP for a given location."""
     today = datetime.utcnow().strftime('%Y%m%d')
     loc_id_str = str(loc_id).zfill(2)
-
     emp_file = f'{today}_{loc_id_str}_EMP.csv'
     rop_file = f'{today}_{loc_id_str}_ROP.csv'
+
+    if backend == 'sftp':
+        emp_source, emp_path = 'IgEmployeeHeaders', emp_file
+        rop_source, rop_path = 'IgEmployeeRop', rop_file
+    elif backend == 'server12':
+        # Both point at the same external data source (aubdatain / InfoGenesis container);
+        # the relative path carries the per-location, per-file-type folder structure.
+        emp_source, emp_path = 'AubDataInEmployee', f'employees/{loc_id}/csv/header/{emp_file}'
+        rop_source, rop_path = 'AubDataInEmployee', f'employees/{loc_id}/csv/jobcodes/{rop_file}'
+    else:
+        raise ValueError(f'Unknown backend "{backend}" for locId {loc_id}')
 
     cursor = conn.cursor()
 
     cursor.execute(f"""
         BULK INSERT ig.v_employees
-        FROM '{emp_file}'
-        WITH (DATA_SOURCE='IgEmployeeHeaders', FORMAT='CSV', ROWTERMINATOR='0x0D0A');
+        FROM '{emp_path}'
+        WITH (DATA_SOURCE='{emp_source}', FORMAT='CSV', ROWTERMINATOR='0x0D0A');
     """)
 
     cursor.execute(f"""
         BULK INSERT ig.v_employee_rop
-        FROM '{rop_file}'
-        WITH (DATA_SOURCE='IgEmployeeRop', FORMAT='CSV', ROWTERMINATOR='0x0D0A');
+        FROM '{rop_path}'
+        WITH (DATA_SOURCE='{rop_source}', FORMAT='CSV', ROWTERMINATOR='0x0D0A');
     """)
 
     conn.commit()
@@ -109,26 +153,38 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             status_code=500
         )
 
-    try:
-        sftp, transport = get_sftp_client()
-    except Exception as e:
-        logging.error(f'SFTP connection failed: {str(e)}')
-        return func.HttpResponse(
-            '{"success": false, "message": "SFTP connection failed"}',
-            mimetype="application/json",
-            status_code=500
-        )
-
-    for loc_id in ACTIVE_LOCATIONS:
-        loc_id_str = str(loc_id).zfill(2)
-        sftp_path = f'/Home/aubr1.ftpadmin/Export/{loc_id_str}/Emp_Exp.txt'
+    # Only open an SFTP connection if we actually have legacy-backend locations to process.
+    sftp, transport = None, None
+    if SFTP_LOCATIONS:
         try:
-            with sftp.open(sftp_path, 'r') as f:
-                txt_data = f.read().decode('utf-8-sig')
+            sftp, transport = get_sftp_client()
+        except Exception as e:
+            logging.error(f'SFTP connection failed: {str(e)}')
+            try:
+                conn.close()
+            except:
+                pass
+            return func.HttpResponse(
+                '{"success": false, "message": "SFTP connection failed"}',
+                mimetype="application/json",
+                status_code=500
+            )
+
+    locations = (
+        [(loc_id, 'sftp') for loc_id in SFTP_LOCATIONS] +
+        [(loc_id, 'server12') for loc_id in SERVER12_LOCATIONS]
+    )
+
+    for loc_id, backend in locations:
+        try:
+            if backend == 'sftp':
+                txt_data = get_sftp_employee_file(sftp, loc_id)
+            else:
+                txt_data = get_blob_employee_file(loc_id)
 
             emp_csv, rop_csv = process_file(txt_data, loc_id)
-            upload_to_blob(emp_csv, rop_csv, loc_id)
-            bulk_insert(loc_id, conn)
+            upload_to_blob(emp_csv, rop_csv, loc_id, backend)
+            bulk_insert(loc_id, backend, conn)
 
             succeeded.append(loc_id)
             logging.info(f'locId {loc_id}: insert complete.')
@@ -139,8 +195,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     # Cleanup
     try:
-        sftp.close()
-        transport.close()
+        if sftp:
+            sftp.close()
+        if transport:
+            transport.close()
         conn.close()
     except:
         pass
