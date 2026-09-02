@@ -31,7 +31,7 @@ def get_sftp_employee_file(sftp, loc_id: int) -> str:
 
 def get_blob_employee_file(loc_id: int) -> str:
     """Retrieve the raw employee export for a Server 12 location from aubdatain."""
-    blob_path = f'employees/{loc_id}/Emp_Imp.txt'
+    blob_path = f'employees/{loc_id}/Emp_Exp.txt'
     container_client = get_aubdatain_container_client()
     blob_client = container_client.get_blob_client(blob_path)
     return blob_client.download_blob().readall().decode('utf-8-sig')
