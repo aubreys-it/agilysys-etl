@@ -153,9 +153,33 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             status_code=500
         )
 
-    # Only open an SFTP connection if we actually have legacy-backend locations to process.
+    locations = (
+        [(loc_id, 'sftp') for loc_id in SFTP_LOCATIONS] +
+        [(loc_id, 'server12') for loc_id in SERVER12_LOCATIONS]
+    )
+
+    # Optional ?locId=26 to test/run a single location without touching the rest of the batch.
+    loc_filter = req.params.get('locId')
+    if loc_filter:
+        try:
+            loc_filter = int(loc_filter)
+        except ValueError:
+            return func.HttpResponse(
+                '{"success": false, "message": "locId must be an integer"}',
+                mimetype="application/json",
+                status_code=400
+            )
+        locations = [(loc_id, backend) for loc_id, backend in locations if loc_id == loc_filter]
+        if not locations:
+            return func.HttpResponse(
+                f'{{"success": false, "message": "locId {loc_filter} is not in SFTP_LOCATIONS or SERVER12_LOCATIONS"}}',
+                mimetype="application/json",
+                status_code=400
+            )
+
+    # Only open an SFTP connection if this run actually touches an SFTP-backend location.
     sftp, transport = None, None
-    if SFTP_LOCATIONS:
+    if any(backend == 'sftp' for _, backend in locations):
         try:
             sftp, transport = get_sftp_client()
         except Exception as e:
@@ -169,11 +193,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json",
                 status_code=500
             )
-
-    locations = (
-        [(loc_id, 'sftp') for loc_id in SFTP_LOCATIONS] +
-        [(loc_id, 'server12') for loc_id in SERVER12_LOCATIONS]
-    )
 
     for loc_id, backend in locations:
         try:
