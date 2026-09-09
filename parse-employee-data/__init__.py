@@ -17,7 +17,41 @@ EMP_FIELD_COUNT_WITH_PASSCODE = EMP_FIELD_COUNT_BASE + 1
 def get_sftp_client():
     transport = paramiko.Transport((os.environ['SFTP_HOST'], int(os.environ.get('SFTP_PORT', 22))))
     transport.connect(username=os.environ['SFTP_USER'], password=os.environ['SFTP_PASSWORD'])
+    transport.set_keepalive(30)
     return paramiko.SFTPClient.from_transport(transport), transport
+
+SFTP_CONNECT_RETRIES = 3
+SFTP_RECOVERABLE_ERRORS = (paramiko.SSHException, OSError, EOFError)
+
+def fetch_sftp_file_with_retry(conn_holder: list, loc_id: int) -> str:
+    """
+    Fetch a location's employee file over SFTP, transparently reconnecting on a
+    dead connection. conn_holder is a mutable [sftp, transport] pair so a
+    reconnect made here is picked up by every subsequent location in the same
+    invocation, not just this one.
+    """
+    last_exc = None
+    for attempt in range(1, SFTP_CONNECT_RETRIES + 1):
+        try:
+            return get_sftp_employee_file(conn_holder[0], loc_id)
+        except SFTP_RECOVERABLE_ERRORS as e:
+            last_exc = e
+            logging.warning(
+                f'locId {loc_id}: SFTP fetch attempt {attempt}/{SFTP_CONNECT_RETRIES} '
+                f'failed ({e}); reconnecting.'
+            )
+            for closeable in (conn_holder[0], conn_holder[1]):
+                try:
+                    if closeable:
+                        closeable.close()
+                except Exception:
+                    pass
+            try:
+                conn_holder[0], conn_holder[1] = get_sftp_client()
+            except Exception as reconnect_err:
+                last_exc = reconnect_err
+                logging.error(f'locId {loc_id}: reconnect attempt {attempt} failed ({reconnect_err}).')
+    raise last_exc
 
 def get_aubdatain_container_client():
     return ContainerClient.from_container_url(os.environ['AUBDATAIN_URL'] + os.environ['AUBDATAIN_SAS'])
@@ -194,10 +228,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=500
             )
 
+    conn_holder = [sftp, transport]
+
     for loc_id, backend in locations:
         try:
             if backend == 'sftp':
-                txt_data = get_sftp_employee_file(sftp, loc_id)
+                txt_data = fetch_sftp_file_with_retry(conn_holder, loc_id)
             else:
                 txt_data = get_blob_employee_file(loc_id)
 
@@ -212,12 +248,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             failed.append(loc_id)
             logging.error(f'locId {loc_id}: failed — {str(e)}')
 
-    # Cleanup
+    # Cleanup — use conn_holder, not the original sftp/transport, since a
+    # mid-run reconnect may have replaced them with a new pair.
     try:
-        if sftp:
-            sftp.close()
-        if transport:
-            transport.close()
+        if conn_holder[0]:
+            conn_holder[0].close()
+        if conn_holder[1]:
+            conn_holder[1].close()
         conn.close()
     except:
         pass
