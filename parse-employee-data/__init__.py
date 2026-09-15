@@ -215,8 +215,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 txt_data = get_blob_employee_file(loc_id)
 
             emp_csv, rop_csv = process_file(txt_data, loc_id)
-            upload_to_blob(emp_csv, rop_csv, loc_id, backend)
-            bulk_insert(loc_id, backend, conn)
+            upload_to_blob(emp_csv, rop_csv, loc_id)
+            bulk_insert(loc_id, conn)
 
             succeeded.append(loc_id)
             logging.info(f'locId {loc_id}: insert complete.')
