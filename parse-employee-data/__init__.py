@@ -104,66 +104,43 @@ def process_file(txt_data: str, loc_id: int):
 
     return '\r\n'.join(emp_csv_lines), '\r\n'.join(rop_csv_lines)
 
-def upload_to_blob(emp_csv: str, rop_csv: str, loc_id: int, backend: str):
-    """Upload employee header and ROP CSVs to blob storage. Destination depends on backend."""
+def upload_to_blob(emp_csv: str, rop_csv: str, loc_id: int):
+    """Upload employee header and ROP CSVs to aubdatain, staged for BULK INSERT."""
     today = datetime.utcnow().strftime('%Y%m%d')
     loc_id_str = str(loc_id).zfill(2)
     emp_file = f'{today}_{loc_id_str}_EMP.csv'
     rop_file = f'{today}_{loc_id_str}_ROP.csv'
 
-    if backend == 'sftp':
-        txt_sas = os.environ['EMP_SAS']
+    container_client = get_aubdatain_container_client()
 
-        emp_client = ContainerClient.from_container_url(os.environ['DATALAKE_EMPLOYEE_DATA_URL'] + txt_sas)
-        emp_client.get_blob_client(emp_file).upload_blob(emp_csv, overwrite=True)
+    emp_blob_path = f'employees/{loc_id}/csv/header/{emp_file}'
+    container_client.get_blob_client(emp_blob_path).upload_blob(emp_csv, overwrite=True)
 
-        rop_client = ContainerClient.from_container_url(os.environ['DATALAKE_ROP_DATA_URL'] + txt_sas)
-        rop_client.get_blob_client(rop_file).upload_blob(rop_csv, overwrite=True)
+    rop_blob_path = f'employees/{loc_id}/csv/jobcodes/{rop_file}'
+    container_client.get_blob_client(rop_blob_path).upload_blob(rop_csv, overwrite=True)
 
-    elif backend == 'server12':
-        container_client = get_aubdatain_container_client()
 
-        emp_blob_path = f'employees/{loc_id}/csv/header/{emp_file}'
-        container_client.get_blob_client(emp_blob_path).upload_blob(emp_csv, overwrite=True)
-
-        rop_blob_path = f'employees/{loc_id}/csv/jobcodes/{rop_file}'
-        container_client.get_blob_client(rop_blob_path).upload_blob(rop_csv, overwrite=True)
-
-    else:
-        raise ValueError(f'Unknown backend "{backend}" for locId {loc_id}')
-
-def bulk_insert(loc_id: int, backend: str, conn):
-    """Execute BULK INSERT for employee header and ROP for a given location."""
+def bulk_insert(loc_id: int, conn):
+    """Execute BULK INSERT for employee header and ROP for a given location, from aubdatain."""
     today = datetime.utcnow().strftime('%Y%m%d')
     loc_id_str = str(loc_id).zfill(2)
     emp_file = f'{today}_{loc_id_str}_EMP.csv'
     rop_file = f'{today}_{loc_id_str}_ROP.csv'
 
-    if backend == 'sftp':
-        emp_source, emp_path = 'IgEmployeeHeaders', emp_file
-        rop_source, rop_path = 'IgEmployeeRop', rop_file
-    elif backend == 'server12':
-        # Both point at the same external data source (aubdatain / InfoGenesis container);
-        # the relative path carries the per-location, per-file-type folder structure.
-        emp_source, emp_path = 'AubDataInEmployee', f'employees/{loc_id}/csv/header/{emp_file}'
-        rop_source, rop_path = 'AubDataInEmployee', f'employees/{loc_id}/csv/jobcodes/{rop_file}'
-    else:
-        raise ValueError(f'Unknown backend "{backend}" for locId {loc_id}')
+    emp_source, emp_path = 'AubDataInEmployee', f'employees/{loc_id}/csv/header/{emp_file}'
+    rop_source, rop_path = 'AubDataInEmployee', f'employees/{loc_id}/csv/jobcodes/{rop_file}'
 
     cursor = conn.cursor()
-
     cursor.execute(f"""
         BULK INSERT ig.v_employees
         FROM '{emp_path}'
         WITH (DATA_SOURCE='{emp_source}', FORMAT='CSV', ROWTERMINATOR='0x0D0A');
     """)
-
     cursor.execute(f"""
         BULK INSERT ig.v_employee_rop
         FROM '{rop_path}'
         WITH (DATA_SOURCE='{rop_source}', FORMAT='CSV', ROWTERMINATOR='0x0D0A');
     """)
-
     conn.commit()
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
