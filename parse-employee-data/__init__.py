@@ -143,6 +143,12 @@ def bulk_insert(loc_id: int, conn):
     """)
     conn.commit()
 
+def upload_raw_file_to_blob(txt_data: str, loc_id: int):
+    """Archive the raw SFTP export to aubdatain, mirroring the root-level path Server 12 already gets."""
+    container_client = get_aubdatain_container_client()
+    blob_path = f'employees/{loc_id}/Emp_Exp.txt'
+    container_client.get_blob_client(blob_path).upload_blob(txt_data, overwrite=True)
+    
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Employee data sync batch started.')
 
@@ -211,6 +217,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         try:
             if backend == 'sftp':
                 txt_data = fetch_sftp_file_with_retry(conn_holder, loc_id)
+                try:
+                    upload_raw_file_to_blob(txt_data, loc_id)
+                except Exception as e:
+                    logging.warning(f'locId {loc_id}: raw file archive failed ({e}) — continuing with parse/insert.')
             else:
                 txt_data = get_blob_employee_file(loc_id)
 
