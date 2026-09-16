@@ -65,7 +65,8 @@ def get_sftp_employee_file(sftp, loc_id: int) -> str:
 
 def get_blob_employee_file(loc_id: int) -> str:
     """Retrieve the raw employee export for a Server 12 location from aubdatain."""
-    blob_path = f'employees/{loc_id}/Emp_Exp.txt'
+    loc_id_str = str(loc_id).zfill(2)
+    blob_path = f'employees/{loc_id_str}/Emp_Exp.txt'
     container_client = get_aubdatain_container_client()
     blob_client = container_client.get_blob_client(blob_path)
     return blob_client.download_blob().readall().decode('utf-8-sig')
@@ -113,10 +114,12 @@ def upload_to_blob(emp_csv: str, rop_csv: str, loc_id: int):
 
     container_client = get_aubdatain_container_client()
 
-    emp_blob_path = f'employees/{loc_id}/csv/header/{emp_file}'
+    # 2026-09-16: folder segment changed from {loc_id} to {loc_id_str} so
+    # single-digit locations get a zero-padded folder, matching aubdataout.
+    emp_blob_path = f'employees/{loc_id_str}/csv/header/{emp_file}'
     container_client.get_blob_client(emp_blob_path).upload_blob(emp_csv, overwrite=True)
 
-    rop_blob_path = f'employees/{loc_id}/csv/jobcodes/{rop_file}'
+    rop_blob_path = f'employees/{loc_id_str}/csv/jobcodes/{rop_file}'
     container_client.get_blob_client(rop_blob_path).upload_blob(rop_csv, overwrite=True)
 
 
@@ -127,8 +130,10 @@ def bulk_insert(loc_id: int, conn):
     emp_file = f'{today}_{loc_id_str}_EMP.csv'
     rop_file = f'{today}_{loc_id_str}_ROP.csv'
 
-    emp_source, emp_path = 'AubDataInEmployee', f'employees/{loc_id}/csv/header/{emp_file}'
-    rop_source, rop_path = 'AubDataInEmployee', f'employees/{loc_id}/csv/jobcodes/{rop_file}'
+    # 2026-09-16: must stay in lockstep with upload_to_blob's folder segment above —
+    # this is a read of the exact path that function just wrote.
+    emp_source, emp_path = 'AubDataInEmployee', f'employees/{loc_id_str}/csv/header/{emp_file}'
+    rop_source, rop_path = 'AubDataInEmployee', f'employees/{loc_id_str}/csv/jobcodes/{rop_file}'
 
     cursor = conn.cursor()
     cursor.execute(f"""
@@ -145,8 +150,9 @@ def bulk_insert(loc_id: int, conn):
 
 def upload_raw_file_to_blob(txt_data: str, loc_id: int):
     """Archive the raw SFTP export to aubdatain, mirroring the root-level path Server 12 already gets."""
+    loc_id_str = str(loc_id).zfill(2)  # 2026-09-16: added for consistent zero-padded folder naming
     container_client = get_aubdatain_container_client()
-    blob_path = f'employees/{loc_id}/Emp_Exp.txt'
+    blob_path = f'employees/{loc_id_str}/Emp_Exp.txt'
     container_client.get_blob_client(blob_path).upload_blob(txt_data, overwrite=True)
     
 def main(req: func.HttpRequest) -> func.HttpResponse:
